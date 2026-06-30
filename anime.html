@@ -5,6 +5,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
         <link rel="stylesheet" href="nav_style.css">
+        <link rel="stylesheet" href="anime.css">
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
         
     </head>
@@ -106,7 +107,19 @@
                 </div>
             </nav>
             <div class="container">
-                <h2>heading</h2>
+                <div class="anime-grid" id="animeGrid">
+
+                    <!-- INSERT CARD -->
+                    <div class="card-insert" onclick="openModal()">
+                        <span class="card-insert-text">Insert New Anime</span>
+                        <i class="material-icons">add</i>
+                        <div class="card-insert-triangle"></div>
+                    </div>
+
+                    <!-- SAMPLE ENTRIES — replace image src with real poster URLs, or leave blank for placeholder -->
+                    <!-- Each card uses data-title for search filtering -->
+
+                </div>
             </div>
         </div>
     </body>
