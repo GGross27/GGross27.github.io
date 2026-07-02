@@ -85,8 +85,9 @@ body {
     opacity: 1;
 }
 
-.top .logo i {
-    font-size: 2rem;
+.top .logo img {
+    min-width: 50px;
+    height: 24px;
     margin-right: 5px;
 }
 
@@ -208,12 +209,12 @@ body {
 }
 
 .topnav .site-logo {
-    font-size: 1.1rem;
-    font-weight: 700;
     color: var(--light);
     white-space: nowrap;
     flex-shrink: 0;
-    min-width: 80px;        /* mirrors profile icon side for true centering */
+    min-width: 50px;
+    height: 35px;
+    padding-right: 30px;
 }
 
 .topnav .search-bar {

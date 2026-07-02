@@ -6,6 +6,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
         <link rel="stylesheet" href="nav_style.css">
         <link rel="stylesheet" href="anime.css">
+        <link rel="stylesheet" href="anime.py">
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
         
     </head>
@@ -13,7 +14,7 @@
         <div class="sidebar">
             <div class="top">
                 <div class="logo">
-                    <i class="material-icons">library_books</i>
+                    <img class="icon" src="myAssets/light_square_logo.svg" alt="Logo Square"/> 
                     <span>BibiloKomi</span>
                 </div>
                 <span class="material-icons" id="btn">menu</span>
@@ -94,7 +95,8 @@
 
         <div class="main-content">
             <nav class="topnav">
-                <span class="site-logo">SiteName</span>
+                <img class="site-logo" src="myAssets/logo_light_transparent.png" alt="Logo Full"/> 
+                <!-- <span class="site-logo">BibiloKomi</span> -->
 
                 <div class="search-bar">
                     <i class="material-icons">search</i>
@@ -116,9 +118,51 @@
                         <div class="card-insert-triangle"></div>
                     </div>
 
+
                     <!-- SAMPLE ENTRIES — replace image src with real poster URLs, or leave blank for placeholder -->
                     <!-- Each card uses data-title for search filtering -->
 
+                </div>
+                
+            </div>
+
+
+            <!-- ADD ANIME MODAL -->
+            <div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event)">
+                <div class="modal">
+                    <h2>Add New Anime</h2>
+                    <form id="animeForm" method="POST" action="/add-anime">
+                        <div class="form-group">
+                            <label for="inputTitle">Title</label>
+                            <input type="text" id="inputTitle" name="title" placeholder="e.g. Apothecary Diaries" required>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="inputSeason">Season</label>
+                                <input type="text" id="inputSeason" name="season" placeholder="e.g. Season 1">
+                            </div>
+                            <div class="form-group">
+                                <label for="inputEpisodes">Episodes</label>
+                                <input type="text" id="inputEpisodes" name="episodes" placeholder="e.g. 24 episodes">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="inputStatus">Status</label>
+                            <select id="inputStatus" name="status">
+                                <option value="In Progress">In Progress</option>
+                                <option value="Watched">Watched</option>
+                                <option value="Planned">Planned</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="inputImage">Cover Image URL (optional)</label>
+                            <input type="text" id="inputImage" name="image_url" placeholder="https://... (leave blank for placeholder)">
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Add Anime</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -132,6 +176,48 @@
             sidebar.classList.toggle('active');
         };
 
+        // ── FORM SUBMIT ──
+        document.getElementById('animeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const title = document.getElementById('inputTitle').value.trim();
+            if (!title) { document.getElementById('inputTitle').focus(); return; }
+
+            const formData = new FormData(e.target);
+            const editId = document.getElementById('modalOverlay').getAttribute('data-edit');
+            if (editId) formData.append('edit_id', editId);
+
+            const res = await fetch('/add-anime', {
+                method: 'POST',
+                body: formData   // sent as multipart/form-data; Flask reads it via request.form
+            });
+
+            if (res.ok) {
+                const result = await res.json();
+                renderCards(result.entries);   // Flask sends back the updated list
+                closeModal();
+            } else {
+                console.error('Save failed');
+            }
+        });
+
+        // ── MODAL ──
+        function openModal(editId = null) {
+            document.getElementById('modalOverlay').classList.add('open');
+            document.getElementById('inputTitle').focus();
+            if (editId) document.getElementById('modalOverlay').setAttribute('data-edit', editId);
+            else document.getElementById('modalOverlay').removeAttribute('data-edit');
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('open');
+            document.getElementById('animeForm').reset();   // resets all fields at once
+            document.getElementById('modalOverlay').removeAttribute('data-edit');
+        }
+
+        function closeModalOutside(e) {
+            if (e.target === document.getElementById('modalOverlay')) closeModal();
+        }
 
     </script>
 </html>

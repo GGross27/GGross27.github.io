@@ -6,7 +6,7 @@
     --light: #FFFFFF;
     --grey: #37373B;
     --grey-light: #F1F1F1;
-    --red-light: #F2C7BA;
+    --red-light: #ef5b53;
     --blue-dark: #35314C;
     --grey-light-2: #CDCDCD;
     --dark-3: #181823;
@@ -31,6 +31,7 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     gap: 16px;
+    padding: 0px 30px;
 }
 
 /* ── INSERT CARD ── */
@@ -68,3 +69,85 @@
     border-width: 0 0 50px 50px;
     border-color: transparent transparent rgba(0,0,0,0.2) transparent;
 }
+
+/* ── MODAL ── */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay.open { display: flex; }
+
+.modal {
+    background: var(--dark-background);
+    border: 1px solid var(--primary);
+    border-radius: 12px;
+    padding: 28px;
+    width: 360px;
+    max-width: 94vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+
+.modal h2 { font-size: 1rem; margin-bottom: 18px; color: var(--text-primary); }
+
+.form-group { margin-bottom: 14px; }
+
+.form-group label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--light);
+    margin-bottom: 5px;
+    font-weight: 600;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--dark-background);
+    border: 1px solid var(--light);
+    border-radius: 6px;
+    color: var(--light);
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus { border-color: var(--red-light); }
+
+.form-group select option { background: var(--blue-dark); }
+
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    justify-content: flex-end;
+}
+
+.btn {
+    padding: 8px 18px;
+    border-radius: 6px;
+    border: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter 0.2s;
+}
+
+.btn:hover { filter: brightness(1.1); }
+.btn-primary { background: var(--primary); color: #000; }
+.btn-secondary { background: var(--dark-background); color: var(--light); border: 1px solid var(--blue-stroke); }
+
+
+  /* Scrollbar styling */
+.content::-webkit-scrollbar { width: 6px; }
+.content::-webkit-scrollbar-track { background: transparent; }
+.content::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 3px; }
