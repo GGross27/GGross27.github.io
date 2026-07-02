@@ -84,25 +84,46 @@ def scrape_work(soup, link):
         print(f"Failed getting fandom tags: {traceback.format_exc()}")
         return None
 
-def scrape_series(soup):
-    pass
-
-def clean_work_info(work_info):   
-    if work_info is None or isinstance(work_info, str):
-        error_Message = f"Scrape failed for {url}: {work_info}"
-        print(error_Message)
-        failed_links.append((url, error_message))
-        continue
+def scrape_series(soup, link):
+    sleep(random.randint(5, 10))
     
-    chapter_count = work_info['Chapter Count']
-    status = work_info['Status']
-    
-    if status == 'Completed':
-        work_info["Completed"] = True
+    try: 
+        series_serial_num = link.split('/')[4].strip()
+        series_ID = "AO3S_" + (series_serial_num)
         
-    work_info["Category_ID"] = derive_category(chapter_count,  work_info["Completed"]) 
+        main = soup.find('div', class_='series-show')
+        title_text = main.find('h2', class_='heading').get_text(strip=True)
+        
+        content = main.find('div', class_='wrapper')
+        inner_content = content.find('dl', class_='series')
+        creator_dt = inner_content.find('dt', string='Creator:')
+        author_text = creator_dt.find_next_sibling('dd').find('a').get_text(strip=True)
+                
+        stats = inner_content.find('dd', class_='stats').find('dl', class_='stats')
+        works_count = stats.find('dd', class_='works').get_text(strip=True)
+        complete_dt = stats.find('dt', string='Complete:')
+        completed_status = complete_dt.find_next_sibling('dd').get_text(strip=True)
+        
+        if completed_status == "Yes":
+            completed = True
+        else: 
+            completed = False
+            
+        results = {
+            "Title": title_text,
+            "Author": author_text,
+            "url": link,
+            "ID": series_ID,
+            "Works Count": int(works_count),
+            "Completed": completed,
+            "Category_ID": None
+        }
+        
+        return results
     
-    return work_info
+    except Exception as e:
+        print(f"Failed getting work info group: {traceback.format_exc()}")
+        return None
 
 def derive_category(chapter_count:int, completed: bool):
     '''
@@ -138,8 +159,8 @@ def main(args, batchNum=None):
         links = open(args.txt).read().splitlines()
     
     
-    work_results = []
-    series_results = []
+    work_results_batch = []
+    series_results_batch = []
     failed_links = []
     
     # with open('test_batch.txt', 'r') as file:
@@ -147,7 +168,7 @@ def main(args, batchNum=None):
     #         links.append(line.strip('\n'))
     # # print(links)
     
-    open('Works.csv', 'w').close()
+    # open('Works.csv', 'w').close()
     
     for url in links:
     # url = "https://archiveofourown.org/works/28616283/chapters/70346880#main"
@@ -163,30 +184,69 @@ def main(args, batchNum=None):
         if status_code == 200:  # OK
             soup = BeautifulSoup(response.text, 'html.parser')
             if '/series/' in url:
-                # scrape_series(soup)
-                category_id = 4
+                try: 
+                    series_info = scrape_series(soup, url)
+                    sleep(random.randint(5, 10))
+                    
+                    if series_info is None or isinstance(series_info, str):
+                        error_Message = f"Scrape failed for {url}: {series_info}"
+                        print(error_Message)
+                        failed_links.append((url, error_message))
+                        continue
+                        
+                    series_info["Category_ID"] = 4
+                    series_results_batch.append(series_info) 
+                except Exception as e:
+                    print("Data could not be extracted: ", e)
             else: 
                 try: 
                     work_info = scrape_work(soup, url)
                     sleep(random.randint(5, 10))
-                    work_info = clean_work_info(work_info)
-                    work_results.append(work_info) 
+                    
+                    if work_info is None or isinstance(work_info, str):
+                        error_Message = f"Scrape failed for {url}: {work_info}"
+                        print(error_Message)
+                        failed_links.append((url, error_message))
+                        continue
+
+                    chapter_count = work_info['Chapter Count']
+                    status = work_info['Status']
+
+                    if status == 'Completed':
+                        work_info["Completed"] = True
+                        
+                    work_info["Category_ID"] = derive_category(chapter_count,  work_info["Completed"]) 
+                    work_results_batch.append(work_info) 
                 except Exception as e:
                     print("Data could not be extracted: ", e)
         elif status_code == 404: # Not Found
             category_id = 5
             failed_links.append((url, status_code))
-
         elif status_code == 403: # Forbidden
             category_id = 6
             #this migh not be needed if i used cookies
             failed_links.append((url, status_code))
-
-    df = pd.DataFrame(work_results)
-    df.to_csv("Works.csv", index=False)
-    # return all the info needed for each link
-    # this should be a full CSV
+            
+        if len(work_results_batch) == 10:
+            # return all the info needed for every 10 links
+            df = pd.DataFrame(work_results_batch)
+            df.to_csv("ao3_archive/Works.csv", mode='a', index=False)
+            work_results_batch.clear()
+            
+        if len(series_results_batch) == 10:
+            df = pd.DataFrame(series_results_batch)
+            df.to_csv("ao3_archive/Series.csv", mode='a', index=False) 
+            series_results_batch.clear()
     
+    if len(work_results_batch) > 0:
+        df = pd.DataFrame(work_results_batch)
+        df.to_csv("ao3_archive/Works.csv", mode='a', index=False)
+        work_results_batch.clear()
+        
+    if len(series_results_batch) > 0:
+        df = pd.DataFrame(series_results_batch)
+        df.to_csv("ao3_archive/Series.csv", mode='a', index=False) 
+        series_results_batch.clear()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

@@ -1,0 +1,125 @@
+<!DOCTYPE HTML>
+<html>
+    <head lang="en" data-theme="dark">
+        <title>Anime Database</title>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <link rel="stylesheet" href="css/nav_style.css">
+        <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+        
+    </head>
+    <body>
+        <div class="sidebar">
+            <div class="top">
+                <div class="logo">
+                    <img class="icon" src="myAssets/light_square_logo.svg" alt="Logo Square"/> 
+                    <span>BibiloKomi</span>
+                </div>
+                <span class="material-icons" id="btn">menu</span>
+            </div>
+            <div class="user">
+                <img src="user-img.jpeg" alt="me" class="user-img">
+                <div>
+                    <p class="bold">John Doe</p>
+                    <p>Developer</p>
+                </div>
+            </div>
+            <ul>
+                <li class="active">
+                    <a href="index.html">
+                        <i class="material-icons">dashboard</i>
+                        <span class="nav-item">Dashboard</span>
+                    </a>
+                    <span class="tooltip">Dashboard</span>
+                </li>
+                <li>
+                    <a href="user.html">
+                        <i class="material-icons">account_circle</i>
+                        <span class="nav-item">User</span>
+                    </a>
+                    <span class="tooltip">User</span>
+                </li>
+                <li>
+                    <a href="anime.html">
+                        <i class="material-icons">live_tv</i>
+                        <span class="nav-item">Anime</span>
+                    </a>
+                    <span class="tooltip">Anime</span>
+                </li>
+                <li>
+                    <a href="AO3.html">
+                        <img class="icon" src="myAssets/Google Icons/archive-of-our-own-svgrepo-com.svg" alt="Archive of Our Own"/>
+                        <span class="nav-item">ArchiveOfOurOwn</span>
+                    </a>
+                    <span class="tooltip">ArchiveOfOurOwn</span>
+                </li>
+                <li>
+                    <a href="books.html">
+                        <i class="material-icons">book</i>
+                        <span class="nav-item">Books</span>
+                    </a>
+                    <span class="tooltip">Books</span>
+                </li>
+                <li>
+                    <a href="webcomics.html">
+                        <i class="material-icons">menu_book</i>
+                        <span class="nav-item">Webcomics</span>
+                    </a>
+                    <span class="tooltip">Webcomics</span>
+                </li>
+                <!-- <li>
+                    <a href="favorites.html">
+                        <i class="material-icons">favorite</i>
+                        <span class="nav-item">Favorite</span>
+                    </a>
+                    <span class="tooltip">Favorite</span>
+                </li>
+                <li>
+                    <a href="settings.html">
+                        <i class="material-icons">settings</i>
+                        <span class="nav-item">Setting</span>
+                    </a>
+                    <span class="tooltip">Setting</span>
+                </li> -->
+                <li>
+                    <a href="#">
+                        <i class="material-icons">logout</i>
+                        <span class="nav-item">Logout</span>
+                    </a>
+                    <span class="tooltip">Logout</span>
+                </li>
+            </ul>
+        </div>
+
+        <div class="main-content">
+            <nav class="topnav">
+                <img class="site-logo" src="myAssets/logo_light_transparent.png" alt="Logo Full"/> 
+
+
+                <div class="search-bar">
+                    <i class="material-icons">search</i>
+                    <input type="text" placeholder="Search...">
+                </div>
+
+                <div class="topnav-right">
+                    <!-- profile pic, notifications, etc. -->
+                    <img class="user-img" src="user-img.jpeg" alt="profile">
+                </div>
+            </nav>
+            <div class="container">
+                <h2>heading</h2>
+            </div>
+        </div>
+    </body>
+
+    <script>
+        let btn = document.querySelector('#btn');
+        let sidebar = document.querySelector('.sidebar');
+
+        btn.onclick = function () {
+            sidebar.classList.toggle('active');
+        };
+
+
+    </script>
+</html>
