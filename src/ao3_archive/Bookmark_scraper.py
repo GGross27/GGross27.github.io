@@ -25,8 +25,9 @@ def google_bookmark_scraper(export_file):
                             links.append(link)
                         
         with open("fic_links.txt", "w") as file2:
-            for link in links: 
-                file2.write(link + "\n")
+            for link in links:
+                if link not in file2:  #prob need to debug
+                    file2.write(link + "\n")
 
     except Exception as e:
         print(e)

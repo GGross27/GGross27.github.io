@@ -7,7 +7,7 @@ import Bookmark_scraper
 import traceback
 import random
 import argparse
-
+import os 
 
 def scrape_work(soup, link):
     try: 
@@ -24,7 +24,15 @@ def scrape_work(soup, link):
         preface = soup.find('div', class_='preface')
         title_text = preface.find('h2', class_= 'title').text.strip()
         byline = preface.find('h3', class_='byline')
-        author_text = byline.find('a').text
+        byline_text = byline.get_text(" ", strip=True)
+        if byline_text == "": 
+            author_text = byline.find('a').text
+        else: 
+            author_text = byline_text
+        
+        summary_module = preface.find('div', class_='summary')
+        blockquote = summary_module.find('blockquote', class_='userstuff')
+        summary = blockquote.get_text(" ", strip=True)
 
     except Exception as e:
         print(f"Failed getting work info group: {traceback.format_exc()}")
@@ -57,6 +65,13 @@ def scrape_work(soup, link):
         additionals = work_info_group.find('dd', class_='freeform')
         additional_tags = get_tags(additionals)
         
+        series = work_info_group.find('span', class_='series')
+        if series is None:
+            series_id = None
+        else: 
+            series_section = series.find('span', class_='position')
+            series_id = "AO3S_" + series_section.find('a')['href'].split('/')[2]
+        
         stats = work_info_group.find('dd', class_='stats')
         info = stats.find('dl', class_='stats')
         status = info.find('dt', class_='status').text.strip(':')
@@ -75,6 +90,7 @@ def scrape_work(soup, link):
             "Status": status,
             "Chapter Count": int(chapter_count),
             "Current Chapter": current_chapter_num,
+            "Summary": summary,
             "Completed": False,
             "Category_ID": None
         }
@@ -86,7 +102,6 @@ def scrape_work(soup, link):
 
 def scrape_series(soup, link):
     sleep(random.randint(5, 10))
-    
     try: 
         series_serial_num = link.split('/')[4].strip()
         series_ID = "AO3S_" + (series_serial_num)
@@ -103,11 +118,13 @@ def scrape_series(soup, link):
         works_count = stats.find('dd', class_='works').get_text(strip=True)
         complete_dt = stats.find('dt', string='Complete:')
         completed_status = complete_dt.find_next_sibling('dd').get_text(strip=True)
-        
+
+
         if completed_status == "Yes":
             completed = True
         else: 
             completed = False
+            
             
         results = {
             "Title": title_text,
@@ -147,6 +164,19 @@ def derive_category(chapter_count:int, completed: bool):
         return 3  # Completed
     return 2  # fallback: treat ambiguous as Ongoing
 
+def append_batch(path, batch):
+    if not batch:
+        return
+
+    df = pd.DataFrame(batch)
+    df.to_csv(
+        path,
+        mode='a',
+        index=False,
+        header=not os.path.exists(path)
+    )
+    batch.clear()
+    
 
 def main(args, batchNum=None):
     session = cookies.get_session() 
@@ -157,18 +187,13 @@ def main(args, batchNum=None):
         links = Bookmark_scraper.parse(args.batch)  # your existing bookmark parser
     elif args.txt:
         links = open(args.txt).read().splitlines()
+        if args.start:
+            links = links[args.start - 1:]  # --start 51 starts at line 51
     
     
     work_results_batch = []
     series_results_batch = []
     failed_links = []
-    
-    # with open('test_batch.txt', 'r') as file:
-    #     for line in file:
-    #         links.append(line.strip('\n'))
-    # # print(links)
-    
-    # open('Works.csv', 'w').close()
     
     for url in links:
     # url = "https://archiveofourown.org/works/28616283/chapters/70346880#main"
@@ -229,29 +254,22 @@ def main(args, batchNum=None):
             
         if len(work_results_batch) == 10:
             # return all the info needed for every 10 links
-            df = pd.DataFrame(work_results_batch)
-            df.to_csv("ao3_archive/Works.csv", mode='a', index=False)
-            work_results_batch.clear()
-            
+            append_batch("ao3_archive/Works.csv", work_results_batch)    
         if len(series_results_batch) == 10:
-            df = pd.DataFrame(series_results_batch)
-            df.to_csv("ao3_archive/Series.csv", mode='a', index=False) 
-            series_results_batch.clear()
+            append_batch("ao3_archive/Series.csv", work_results_batch)
     
     if len(work_results_batch) > 0:
-        df = pd.DataFrame(work_results_batch)
-        df.to_csv("ao3_archive/Works.csv", mode='a', index=False)
-        work_results_batch.clear()
-        
+        append_batch("ao3_archive/Works.csv", work_results_batch)
     if len(series_results_batch) > 0:
-        df = pd.DataFrame(series_results_batch)
-        df.to_csv("ao3_archive/Series.csv", mode='a', index=False) 
-        series_results_batch.clear()
+        append_batch("ao3_archive/Series.csv", work_results_batch)
+        
+    return failed_links
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--single', type=str)   # one link
     parser.add_argument('--batch',  type=str)   # bookmarks html file path
     parser.add_argument('--txt',    type=str)   # txt file path
+    parser.add_argument('--start', type=int, default=0)  # optional, defaults to 0
     args = parser.parse_args()
     main(args)
