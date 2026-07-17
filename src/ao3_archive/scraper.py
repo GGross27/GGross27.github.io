@@ -4,14 +4,15 @@ import pandas as pd
 from time import sleep
 import cookies
 import Bookmark_scraper
+import database
 import traceback
 import random
 import argparse
-import os 
+import os
 
 def scrape_work(soup, link):
+    sleep(random.randint(2, 5))
     try: 
-        sleep(random.randint(2, 5))
         work_info_group = soup.select_one('dl.work.meta.group')
         
         work_serial_num = link.split('/')[4].strip()
@@ -88,6 +89,7 @@ def scrape_work(soup, link):
             "Character Tags": character_tags,
             "Additional Tags": additional_tags,
             "Status": status,
+            "Series_id": series_id,
             "Chapter Count": int(chapter_count),
             "Current Chapter": current_chapter_num,
             "Summary": summary,
@@ -131,7 +133,7 @@ def scrape_series(soup, link):
             "Author": author_text,
             "url": link,
             "ID": series_ID,
-            "Works Count": int(works_count),
+            "Works Count": works_count,
             "Completed": completed,
             "Category_ID": None
         }
@@ -195,6 +197,9 @@ def main(args, batchNum=None):
     series_results_batch = []
     failed_links = []
     
+    CONSECUTIVE_BLOCK_LIMIT = 3  # stop after this many 525s in a row
+    consecutive_blocks = 0 
+    
     for url in links:
     # url = "https://archiveofourown.org/works/28616283/chapters/70346880#main"
     
@@ -206,6 +211,19 @@ def main(args, batchNum=None):
         response = session.get(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36'})
         status_code = response.status_code
         print(status_code)
+        
+        if status_code == 525:
+            consecutive_blocks += 1
+            print(f"Cloudflare block {consecutive_blocks}/{CONSECUTIVE_BLOCK_LIMIT} for {url}")
+            failed_links.append((url, status_code))
+            
+            if consecutive_blocks >= CONSECUTIVE_BLOCK_LIMIT:
+                print("Too many consecutive blocks — stopping batch. Try again in 30 minutes.")
+                break  # stop the whole loop, save what you have
+            
+            sleep(60)
+            continue
+        
         if status_code == 200:  # OK
             soup = BeautifulSoup(response.text, 'html.parser')
             if '/series/' in url:
@@ -220,7 +238,9 @@ def main(args, batchNum=None):
                         continue
                         
                     series_info["Category_ID"] = 4
-                    series_results_batch.append(series_info) 
+                    
+                    database.upsert_series(series_info) 
+                    # series_results_batch.append(series_info) 
                 except Exception as e:
                     print("Data could not be extracted: ", e)
             else: 
@@ -240,8 +260,11 @@ def main(args, batchNum=None):
                     if status == 'Completed':
                         work_info["Completed"] = True
                         
-                    work_info["Category_ID"] = derive_category(chapter_count,  work_info["Completed"]) 
-                    work_results_batch.append(work_info) 
+                    work_info["Category_ID"] = derive_category(chapter_count,  work_info["Completed"])
+                    
+                    print("adding to database")
+                    database.upsert_work(work_info) 
+                    # work_results_batch.append(work_info) 
                 except Exception as e:
                     print("Data could not be extracted: ", e)
         elif status_code == 404: # Not Found
@@ -249,19 +272,19 @@ def main(args, batchNum=None):
             failed_links.append((url, status_code))
         elif status_code == 403: # Forbidden
             category_id = 6
-            #this migh not be needed if i used cookies
+            #this might not be needed if i used cookies
             failed_links.append((url, status_code))
             
-        if len(work_results_batch) == 10:
-            # return all the info needed for every 10 links
-            append_batch("ao3_archive/Works.csv", work_results_batch)    
-        if len(series_results_batch) == 10:
-            append_batch("ao3_archive/Series.csv", work_results_batch)
+    #     if len(work_results_batch) == 10:
+    #         # return all the info needed for every 10 links
+    #         append_batch("ao3_archive/Works.csv", work_results_batch)    
+    #     if len(series_results_batch) == 10:
+    #         append_batch("ao3_archive/Series.csv", work_results_batch)
     
-    if len(work_results_batch) > 0:
-        append_batch("ao3_archive/Works.csv", work_results_batch)
-    if len(series_results_batch) > 0:
-        append_batch("ao3_archive/Series.csv", work_results_batch)
+    # if len(work_results_batch) > 0:
+    #     append_batch("ao3_archive/Works.csv", work_results_batch)
+    # if len(series_results_batch) > 0:
+    #     append_batch("ao3_archive/Series.csv", work_results_batch)
         
     return failed_links
 
@@ -273,3 +296,17 @@ if __name__ == "__main__":
     parser.add_argument('--start', type=int, default=0)  # optional, defaults to 0
     args = parser.parse_args()
     main(args)
+    
+    
+'''
+To Do:
+switch from using csv to directly adding the data into their respective tables
+this should be done here and in database.py
+    ---> test the most recent scraper + database.py code
+    
+
+fix the data collection method in the html pages
+    html form --> js collection --> python grab+ process into sql
+    
+figure out how to display data from sql databases onto a website
+'''

@@ -20,7 +20,6 @@ CREATE TABLE works (
     filter_category_id INT REFERENCES filter_categories(id),
     link               TEXT,
     epub_download      TEXT,                     -- from "download"
-    local_file         TEXT,                     -- for stored epub path
     status             TEXT DEFAULT 'active',
     date_added         TIMESTAMP DEFAULT NOW(),
     last_scraped       TIMESTAMP
@@ -40,6 +39,7 @@ CREATE TABLE series(
     last_scraped       TIMESTAMP
 );
 -- Junction tables (one row per tag/character/relationship per fic)
+CREATE TABLE fandom_tags       (fic_id VARCHAR(20) REFERENCES works(id) on DELETE CASCADE, fandom TEXT);
 CREATE TABLE fic_tags          (fic_id VARCHAR(20) REFERENCES works(id) ON DELETE CASCADE, tag TEXT);
 CREATE TABLE fic_characters    (fic_id VARCHAR(20) REFERENCES works(id) ON DELETE CASCADE, character TEXT);
 CREATE TABLE fic_relationships (fic_id VARCHAR(20) REFERENCES works(id) ON DELETE CASCADE, relationship TEXT);
