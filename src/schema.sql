@@ -21,6 +21,8 @@ CREATE TABLE works (
     link               TEXT,
     epub_download      TEXT,                     -- from "download"
     status             TEXT DEFAULT 'active',
+    published          TEXT,
+    status_date        TEXT,
     date_added         TIMESTAMP DEFAULT NOW(),
     last_scraped       TIMESTAMP
 );
@@ -30,20 +32,31 @@ CREATE TABLE series(
     id                 VARCHAR(20) PRIMARY KEY,  -- AO3S_xxxxxxx
     title              TEXT NOT NULL,
     author             TEXT,
+    description        TEXT,
+    notes              TEXT,
     works_count        INT,                      -- from "Works Count"
     completed          BOOLEAN DEFAULT false,
     link               TEXT,
     filter_category_id INT REFERENCES filter_categories(id),
     status             TEXT DEFAULT 'active',
+    created            TEXT,
+    updated            TEXT,
     date_added         TIMESTAMP DEFAULT NOW(),
     last_scraped       TIMESTAMP
 );
 -- Junction tables (one row per tag/character/relationship per fic)
-CREATE TABLE fandom_tags       (fic_id VARCHAR(20) REFERENCES works(id) on DELETE CASCADE, fandom TEXT);
+CREATE TABLE fic_fandoms       (fic_id VARCHAR(20) REFERENCES works(id) on DELETE CASCADE, fandom TEXT);
 CREATE TABLE fic_tags          (fic_id VARCHAR(20) REFERENCES works(id) ON DELETE CASCADE, tag TEXT);
 CREATE TABLE fic_characters    (fic_id VARCHAR(20) REFERENCES works(id) ON DELETE CASCADE, character TEXT);
 CREATE TABLE fic_relationships (fic_id VARCHAR(20) REFERENCES works(id) ON DELETE CASCADE, relationship TEXT);
 
+CREATE TABLE series_works (
+    series_id  VARCHAR(20) REFERENCES series(id) ON DELETE CASCADE,
+    work_id    VARCHAR(20) REFERENCES works(id) ON DELETE CASCADE,
+    work_title TEXT,
+    work_link  TEXT,
+    position   INT  -- order of the work within the series
+);
 
 CREATE TABLE anime (
     id              VARCHAR(20) PRIMARY KEY,  -- e.g. ANI_xxxxxxx
@@ -72,4 +85,19 @@ CREATE TABLE media_tags (
     media_id    VARCHAR(20),  -- references either anime.id or manhwa.id
     media_type  TEXT,         -- 'anime' or 'manhwa' so you know which table
     tag         TEXT
+);
+
+INSERT INTO filter_categories (id, label, min_chapters, completed, series_present) VALUES
+(1, 'Oneshot',   3,    true,  false),
+(2, 'Ongoing',   3,    false, false),
+(3, 'Completed', 3,    true,  false),
+(4, 'Series',    NULL, NULL,  true);
+
+CREATE TABLE failed_links (
+    id          TEXT,                -- AO3W_xxxxxxx or AO3S_xxxxxxx, nullable
+    url         TEXT PRIMARY KEY,
+    status_code INT,
+    error_msg   TEXT,
+    attempted   TIMESTAMP DEFAULT NOW(),
+    resolved    BOOLEAN DEFAULT false
 );

@@ -16,7 +16,8 @@ def google_bookmark_scraper(export_file):
             for name in folder_name:
                 h3 = dt.find('h3')
                 if h3 is None:
-                    continue        
+                    continue   
+
                 if h3.text in folder_name:
                     child_links = dt.find('dl')        
                     for child_dt in child_links.find_all('dt'):   
@@ -26,8 +27,10 @@ def google_bookmark_scraper(export_file):
                         
         with open("fic_links.txt", "w") as file2:
             for link in links:
-                if link not in file2:  #prob need to debug
-                    file2.write(link + "\n")
-
+                file2.write(link + "\n")
+                # if link not in file2:  #prob need to debug
+                    
+                    
+        return links
     except Exception as e:
         print(e)
