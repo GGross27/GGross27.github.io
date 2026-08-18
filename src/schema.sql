@@ -52,10 +52,11 @@ CREATE TABLE fic_relationships (fic_id VARCHAR(20) REFERENCES works(id) ON DELET
 
 CREATE TABLE series_works (
     series_id  VARCHAR(20) REFERENCES series(id) ON DELETE CASCADE,
-    work_id    VARCHAR(20) REFERENCES works(id) ON DELETE CASCADE,
+    work_id    VARCHAR(20),
     work_title TEXT,
     work_link  TEXT,
-    position   INT  -- order of the work within the series
+    position   INT,
+    PRIMARY KEY (series_id, work_id)
 );
 
 CREATE TABLE anime (

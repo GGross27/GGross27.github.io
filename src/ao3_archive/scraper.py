@@ -83,10 +83,13 @@ def scrape_work(soup, link):
         published = info.find('dd', class_='published').get_text(strip=True)
         chapter_count = info.find('dd', class_='chapters').get_text(strip=True).split('/')[0]
         
-        if int(chapter_count) > 1:
-            status = info.find('dt', class_='status').get_text(strip=True).strip(':')[0] # Completed: or Updated:
-            updated = info.find('dd', class_='status').get_text(strip=True) # status date
-        else: 
+        status_dt = info.find('dt', class_='status')
+        status_dd = info.find('dd', class_='status')
+
+        if status_dt and status_dd:
+            status = status_dt.get_text(strip=True).rstrip(':')
+            updated = status_dd.get_text(strip=True)
+        else:
             status = None
             updated = None
         
@@ -145,39 +148,49 @@ def scrape_series(soup, link):
         # creator_dt = inner_content.find('dt', string='Creator:')
         # author_text = creator_dt.find_next_sibling('dd').find('a').get_text(strip=True)
            
-                
-        stats = inner_content.find('dd', class_='stats').find('dl', class_='stats')
-        works_count = stats.find('dd', class_='works').get_text(strip=True)
-        begun_dt = stats.find('dt', string='Series Begun:')
+        series = soup.find('dl', class_='series')
+        begun_dt = series.find('dt', string='Series Begun:')
         series_begun = begun_dt.find_next_sibling('dd').get_text(strip=True)
         
-        updated_dt = stats.find('dt', string='Series Updated:')
-        series_updated = updated_dt.find_next_sibling('dd').get_text(strip=True)
+        updated_dt = series.find('dt', string='Series Updated:')
+        series_updated = updated_dt.find_next_sibling('dd').get_text(strip=True) 
         
-        description_dt = stats.find('dt', string='Description:')
-        description_dd = description_dt.find_next_sibling('dd')
-        blockquote = description_dd.find('blockquote', class_='userstuff')
-        description = "\n\n".join(p.get_text(" ", strip=True) for p in blockquote.find_all("p"))
+        description_dt = series.find('dt', string='Description:')
+        if description_dt:
+            description_dd = description_dt.find_next_sibling('dd')
+            blockquote = description_dd.find('blockquote', class_='userstuff')
+            description = "\n\n".join(p.get_text(" ", strip=True) for p in blockquote.find_all("p"))
+        else:
+            description = None
         
-        notes_dt = stats.find('dt', string='Notes:')
-        notes_dd = notes_dt.find_next_sibling('dd')
-        blockquote = notes_dd.find('blockquote', class_='userstuff')
-        notes = "\n\n".join(p.get_text(" ", strip=True) for p in blockquote.find_all("p"))
+        notes_dt = series.find('dt', string='Notes:')
+        if notes_dt:
+            notes_dd = notes_dt.find_next_sibling('dd')
+            blockquote = notes_dd.find('blockquote', class_='userstuff')
+            notes = "\n\n".join(p.get_text(" ", strip=True) for p in blockquote.find_all("p"))
+        else:
+            notes = None
+        
+        stats = inner_content.find('dd', class_='stats').find('dl', class_='stats')
+        works_count = stats.find('dd', class_='works').get_text(strip=True)
         
         complete_dt = stats.find('dt', string='Complete:')
-        completed_status = complete_dt.find_next_sibling('dd').get_text(strip=True)
-
-        if completed_status == "Yes":
-            completed = True
-        else: 
+        if complete_dt: 
+            completed_status = complete_dt.find_next_sibling('dd').get_text(strip=True)
+            if completed_status == "Yes":
+                completed = True
+            else: 
+                completed = False
+        else:
             completed = False
         
         # get works list from series page
         series_works = []
         for work in soup.find_all('li', class_='work'):
             heading = work.find('h4', class_='heading')
-            work_link = heading.find('a')['href']
-            work_title = heading.find('a').text
+            a = heading.find('a')
+            work_link = a['href']
+            work_title = a.get_text(strip=True)
             work_id = 'AO3W_' + work_link.split('/')[2]
             series_works.append({
                 'work_id': work_id,
@@ -250,9 +263,11 @@ def main(args, batchNum=None):
     if args.single:
         print(f'\n\n[{datetime.datetime.now()}] -- Processing single scrape for {args.single}', file=open("src/logs/ao3_scraper_log.txt", "a", encoding="utf-8"))
         links = [args.single]
+        count = 0
     elif args.batch:
         print(f'\n\n[{datetime.datetime.now()}] -- Processing batch scrape from google bookmarks html file: {args.batch}', file=open("src/logs/ao3_scraper_log.txt", "a", encoding="utf-8"))
         links = bookmark_scraper.google_bookmark_scraper(args.batch)  # your existing bookmark parser
+        count = 0
     elif args.txt or args.failed:
         links = open(args.txt).read().splitlines()
         count = 0 # track number of urls added; testing aid
