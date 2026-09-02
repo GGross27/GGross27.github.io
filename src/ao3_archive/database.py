@@ -92,18 +92,22 @@ def upsert_series(series: dict):
     
     cur.execute("""
         INSERT INTO series (id, title, author, description, notes, works_count, completed, link, 
-                            filter_category_id, status, date_added, last_scraped)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW(),NOW())
+                            filter_category_id, status, created, updated, date_added, last_scraped)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW(),NOW())
         ON CONFLICT (id) DO UPDATE SET
+            description = EXCLUDED.description,
+            notes = EXCLUDED.notes,
             works_count = EXCLUDED.works_count,
             completed = EXCLUDED.completed,
+            created = EXCLUDED.created,
+            updated = EXCLUDED.updated,
             filter_category_id = EXCLUDED.filter_category_id,
             status = EXCLUDED.status, 
             last_scraped = NOW()
     """, (
         series['ID'], series['Title'], series['Author'], series['Description'], 
-        series['Works Count'], series['Notes'], series['Completed'], 
-        series['url'], series['Category_ID'], 'active' 
+        series['Notes'], series['Works Count'], series['Completed'], 
+        series['url'], series['Category_ID'], 'active', series['Created'], series['Updated']  
     ))
     
     cur.execute("DELETE FROM series_works WHERE series_id = %s", (series['ID'],))
