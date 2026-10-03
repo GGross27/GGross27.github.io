@@ -6,6 +6,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
         <link rel="stylesheet" href="src/css/nav_style.css">
         <link rel="stylesheet" href="src/css/ao3.css">
+        <link rel="script" href="src/ao3_archive/ao3.py">
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
         
     </head>
@@ -96,10 +97,9 @@
             <nav class="topnav">
                 <img class="site-logo" src="src/myAssets/logo_light_transparent.png" alt="Logo Full"/> 
 
-
                 <div class="search-bar">
                     <i class="material-icons">search</i>
-                    <input type="text" placeholder="Search...">
+                    <input type="text" id="headerSearch" placeholder="Search...">
                 </div>
 
                 <div class="topnav-right">
@@ -107,22 +107,52 @@
                     <img class="user-img" src="src/user-img.jpeg" alt="profile">
                 </div>
             </nav>
+
+            <nav class="pagination" id="paginationTop"></nav>
+
+
             <div class="container">
                 <div class="fanfic-grid" id="fanficGrid">
 
-                    <!-- INSERT CARD -->
-                    <div class="card-insert" onclick="openModal()">
-                        <span class="card-insert-text">Insert New Fanfic</span>
-                        <i class="material-icons">add</i>
-                        <div class="card-insert-triangle"></div>
-                    </div>
-
-
-                    <!-- SAMPLE ENTRIES — replace image src with real poster URLs, or leave blank for placeholder -->
-                    <!-- Each card uses data-title for search filtering -->
+                    <!-- enter code for displaying all the fic summary entries -->
 
                 </div>  
             </div>
+
+            <div class="rightBar">
+                <div class="sortdropdown">
+                    <select id="viewSelect">
+                        <option value="all">Show All</option>
+                        <option value="completed">Completed</option>
+                        <option value="series">Series</option>
+                        <option value="ongoing">Works (Ongoing)</option>
+                        <option value="oneshots">Oneshots</option>
+                    </select>
+                </div>
+
+                <div class="filterbtns">
+                    <btn id="New" onclick="openModal()">Add New Link</btn>
+                    <btn id="ShowAll" onclick="handleShowAll()">Show All</btn>
+                    <btn id="Expand" onclick="handleExpandAll()">Expand All</btn>
+                    <btn id="Oneshots" onclick="handleFilter('oneshots')">Oneshots</btn>
+                    <btn id="Completed" onclick="handleFilter('completed')">Completed</btn>
+                    <btn id="Works" onclick="handleWorks()">Works</btn>
+                    <btn id="Series" onclick="handleSeries()">Series</btn>
+                    
+                </div>
+
+                <div class="filtertext">
+                    <div id="tag">
+                        <input type="text" id="tagFilter" placeholder="Filter by Tag...">
+                    </div>
+                    <div id="keyword">
+                        <input type="text" id="keywordFilter" placeholder="Filter by Keyword...">
+                    </div>
+                </div>
+            </div>
+
+            <nav class="pagination" id="paginationBottom"></nav>
+
 
 
             <!-- ADD AO3 MODAL -->
@@ -147,11 +177,223 @@
     <script>
         let btn = document.querySelector('#btn');
         let sidebar = document.querySelector('.sidebar');
+        btn.onclick = function () { sidebar.classList.toggle('active'); };
 
-        btn.onclick = function () {
-            sidebar.classList.toggle('active');
-        };
+        function openModal() { document.getElementById('modalOverlay').classList.add('active'); }
+        function closeModal() { document.getElementById('modalOverlay').classList.remove('active'); }
+        function closeModalOutside(event) { if (event.target.id === 'modalOverlay') closeModal(); }
 
+        // ---------------- AO3 entry list ----------------
+        const state = { view: "all", page: 0, tag: "", keyword: "", expandAll: false };
+        let loadEntries; // assigned inside the IIFE below, called by the global functions
 
+        const uiState = { dataset: 'works', filter: null, expandAll: false };
+
+        function refreshButtons() {
+            const set = (id, on) => document.getElementById(id).classList.toggle('pill-active', on);
+
+            set('ShowAll', uiState.filter === null);
+            set('Works', uiState.dataset === 'works');
+            set('Series', uiState.dataset === 'series');
+            set('Completed', uiState.filter === 'completed');
+            set('Oneshots', uiState.filter === 'oneshots');
+            set('Expand', uiState.expandAll);
+
+            const expandBtn = document.getElementById('Expand');
+            expandBtn.disabled = uiState.dataset === 'series';
+
+            state.view = uiState.dataset === 'series'
+                ? 'series'
+                : (uiState.filter || 'all');
+            state.page = 0;
+            loadEntries();
+        }
+
+        function handleShowAll() {
+            uiState.filter = null;
+            refreshButtons();
+        }
+
+        function handleWorks() {
+            uiState.dataset = 'works';
+            refreshButtons();
+        }
+
+        function handleSeries() {
+            uiState.dataset = 'series';
+            uiState.filter = null;
+            uiState.expandAll = false;
+            refreshButtons();
+            document.querySelectorAll('.fanfic-card').forEach(c => c.classList.add('collapsed'));
+        }
+
+        function handleFilter(which) {
+            uiState.filter = (uiState.filter === which) ? null : which;
+            uiState.dataset = 'works';
+            refreshButtons();
+        }
+
+        function handleExpandAll() {
+            if (uiState.dataset === 'series') return;
+            uiState.expandAll = !uiState.expandAll;
+            refreshButtons();
+            document.querySelectorAll('.fanfic-card').forEach(card => {
+                card.classList.toggle('collapsed', !uiState.expandAll);
+            });
+        }
+
+        (() => {
+            const grid = document.getElementById("fanficGrid");
+            const paginationTop = document.getElementById("paginationTop");
+            const paginationBottom = document.getElementById("paginationBottom");
+            const tagFilterInput = document.getElementById("tagFilter");
+            const keywordFilterInput = document.getElementById("keywordFilter");
+            const headerSearchInput = document.getElementById("headerSearch");
+
+            loadEntries = async function () {
+                grid.innerHTML = `<p class="grid-msg">Loading entries&hellip;</p>`;
+                const params = new URLSearchParams({ view: state.view, page: state.page });
+                if (state.tag) params.set("tag", state.tag);
+                if (state.keyword) params.set("keyword", state.keyword);
+
+                try {
+                    const res = await fetch(`/api/entries?${params.toString()}`);
+                    if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+                    const data = await res.json();
+                    grid.innerHTML = "";
+                    renderEntries(data.entries);
+                    renderPagination(data.page, data.total_pages);
+                } catch (err) {
+                    grid.innerHTML = `<p class="grid-msg">Couldn't load entries. ${err.message}</p>`;
+                }
+            };
+
+            function renderEntries(entries) {
+                if (!entries.length) {
+                    grid.innerHTML = `<p class="grid-msg">No entries match this filter.</p>`;
+                    return;
+                }
+                entries.forEach((entry) => {
+                    grid.appendChild(entry.type === "series" ? buildSeriesCard(entry) : buildWorkCard(entry));
+                });
+            }
+
+            function buildWorkCard(entry) {
+                const card = document.createElement("article");
+                card.className = "fanfic-card collapsed";
+                const tagLinks = [...entry.relationships, ...entry.tags]
+                    .map((t) => `<a href="#" class="tag-link" data-tag="${escapeAttr(t)}">${escapeHtml(t)}</a>`)
+                    .join(", ");
+                const seriesLine = entry.series
+                    ? ` &middot; Part of <a href="${escapeAttr(entry.series.link)}" target="_blank" rel="noopener">${escapeHtml(entry.series.title)}</a>`
+                    : "";
+
+                card.innerHTML = `
+                    <div class="fanfic-card-header">
+                        <div class="fanfic-card-title">
+                            <a href="${escapeAttr(entry.link)}" target="_blank" rel="noopener">${escapeHtml(entry.title)}</a>
+                            <span class="by">by ${escapeHtml(entry.author || "Unknown")}</span>
+                        </div>
+                        <div class="fanfic-card-actions">
+                            ${entry.epub_download ? `<a href="${escapeAttr(entry.epub_download)}" title="Download EPUB"><i class="material-icons">download</i></a>` : ""}
+                            <button class="expand-toggle" title="Expand"><i class="material-icons">unfold_more</i></button>
+                        </div>
+                    </div>
+                    <p class="fanfic-card-fandoms">${entry.fandoms.map(escapeHtml).join(" | ")}</p>
+                    <p class="fanfic-card-tags"><span class="label">Tag List:</span>${tagLinks}</p>
+                    <p class="fanfic-card-summary">${escapeHtml(entry.summary || "")}</p>
+                    <p class="fanfic-card-meta">${entry.chapter_count || 0} chapters &middot; ${entry.completed ? "Completed" : "Ongoing"}${seriesLine}</p>
+                `;
+                card.querySelector(".expand-toggle").addEventListener("click", () => card.classList.toggle("collapsed"));
+                card.querySelectorAll(".tag-link").forEach((el) => {
+                    el.addEventListener("click", (e) => {
+                        e.preventDefault();
+                        tagFilterInput.value = el.dataset.tag;
+                        state.tag = el.dataset.tag;
+                        state.page = 0;
+                        loadEntries();
+                    });
+                });
+                return card;
+            }
+
+            function buildSeriesCard(entry) {
+                const card = document.createElement("article");
+                card.className = "fanfic-card collapsed";
+                const worksList = entry.works
+                    .map((w) => `<li><a href="${escapeAttr(w.work_link)}" target="_blank" rel="noopener">${escapeHtml(w.work_title)}</a></li>`)
+                    .join("");
+                card.innerHTML = `
+                    <div class="fanfic-card-header">
+                        <div class="fanfic-card-title">
+                            <a href="${escapeAttr(entry.link)}" target="_blank" rel="noopener">${escapeHtml(entry.title)}</a>
+                            <span class="by">by ${escapeHtml(entry.author || "Unknown")}</span>
+                        </div>
+                        <div class="fanfic-card-actions">
+                            <button class="expand-toggle" title="Expand"><i class="material-icons">unfold_more</i></button>
+                        </div>
+                    </div>
+                    <p class="fanfic-card-summary">${escapeHtml(entry.summary || "")}</p>
+                    <ul class="fanfic-card-works">${worksList}</ul>
+                    <p class="fanfic-card-meta">${entry.works_count || 0} works &middot; ${entry.completed ? "Completed" : "Ongoing"}</p>
+                `;
+                card.querySelector(".expand-toggle").addEventListener("click", () => card.classList.toggle("collapsed"));
+                return card;
+            }
+
+            function buildPageRange(current, total, windowSize = 3) {
+                const pages = new Set();
+                for (let p = Math.max(0, current - windowSize); p <= Math.min(total - 1, current + windowSize); p++) pages.add(p);
+                pages.add(0); pages.add(total - 1);
+                const sorted = [...pages].sort((a, b) => a - b);
+                const result = []; let prev = null;
+                for (const p of sorted) {
+                    if (prev !== null && p - prev > 1) result.push(null);
+                    result.push(p); prev = p;
+                }
+                return result;
+            }
+
+            function renderPagination(current, totalPages) {
+                const range = buildPageRange(current, totalPages);
+                const middle = range.map((p) => p === null
+                    ? `<span class="ellipsis">&hellip;</span>`
+                    : `<button data-page="${p}" class="${p === current ? "active" : ""}">${p + 1}</button>`
+                ).join("");
+                const html = `
+                    <button data-page="${current - 1}" ${current <= 0 ? "disabled" : ""}>&larr; Previous</button>
+                    ${middle}
+                    <button data-page="${current + 1}" ${current >= totalPages - 1 ? "disabled" : ""}>Next &rarr;</button>
+                `;
+                paginationTop.innerHTML = html;
+                paginationBottom.innerHTML = html;
+                [paginationTop, paginationBottom].forEach((c) => {
+                    c.querySelectorAll("button[data-page]").forEach((b) => {
+                        b.addEventListener("click", () => { state.page = Number(b.dataset.page); loadEntries(); });
+                    });
+                });
+            }
+
+            function debounce(fn, delay) {
+                let timer;
+                return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); };
+            }
+
+            tagFilterInput.addEventListener("input", debounce(() => { state.tag = tagFilterInput.value.trim(); state.page = 0; loadEntries(); }, 350));
+            keywordFilterInput.addEventListener("input", debounce(() => { state.keyword = keywordFilterInput.value.trim(); state.page = 0; loadEntries(); }, 350));
+            headerSearchInput.addEventListener("input", debounce(() => {
+                keywordFilterInput.value = headerSearchInput.value;
+                state.keyword = headerSearchInput.value.trim();
+                state.page = 0;
+                loadEntries();
+            }, 350));
+
+            function escapeHtml(str) { return str == null ? "" : String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+            function escapeAttr(str) { return escapeHtml(str).replace(/"/g, "&quot;"); }
+
+            // IIFE runs loadEntries() once on its own — no need for the
+            // separate DOMContentLoaded listener anymore, see note below
+            loadEntries();
+        })();
     </script>
 </html>
